@@ -1,0 +1,41 @@
+[
+  {
+    "id": "dark",
+    "name": "暗黑深邃",
+    "colors": {
+      "primary": "#7C3AED",
+      "secondary": "#10B981",
+      "background": "#0F0F1A",
+      "surface": "#1A1A2E",
+      "text": "#E5E7EB"
+    },
+    "glassEffect": { "enabled": true, "blur": 20, "opacity": 30 },
+    "wallpaper": { "url": "", "fit": "cover", "opacity": 100 }
+  },
+  {
+    "id": "light",
+    "name": "明亮清新",
+    "colors": {
+      "primary": "#2563EB",
+      "secondary": "#7C3AED",
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "text": "#111827"
+    },
+    "glassEffect": { "enabled": true, "blur": 15, "opacity": 20 },
+    "wallpaper": { "url": "", "fit": "cover", "opacity": 100 }
+  },
+  {
+    "id": "ocean",
+    "name": "海洋蓝调",
+    "colors": {
+      "primary": "#0EA5E9",
+      "secondary": "#06B6D4",
+      "background": "#0C4A6E",
+      "surface": "#082F49",
+      "text": "#E0F2FE"
+    },
+    "glassEffect": { "enabled": true, "blur": 25, "opacity": 40 },
+    "wallpaper": { "url": "", "fit": "cover", "opacity": 100 }
+  }
+]
