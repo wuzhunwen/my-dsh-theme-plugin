@@ -1,11 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 import { ThemeService } from './services/ThemeService'
 import type { ThemeAPI, ThemeConfig, ThemePreset } from './types'
 import { defaultThemeConfig } from './types'
 
 export const name = 'my-full-theme'
-export const inject = ['settings']
 
 export interface Config extends ThemeConfig {}
 
@@ -37,28 +37,36 @@ export function apply(ctx: Context, config: Config): void {
 	const logger = ctx.logger('my-theme')
 	const service = new ThemeService(ctx, config)
 	const runtime = ctx as Context & {
-		settings: {
-			register: (name: string, schema: unknown, options: { base: Config }) => {
-				get: () => Config
-				watch: (callback: (config: Config) => void) => () => void
-				update: (patch: Partial<Config>) => Promise<void>
-			}
-		}
 		emit: (event: string, data: unknown) => void
 	}
 	presets.forEach((preset) => service.registerPreset(preset))
 	ctx.provide('themeService', service)
-	const settings = runtime.settings.register('my-theme', Config, { base: config })
-	settings.watch((next: Config) => {
-		service.update(next)
-		runtime.emit('theme:update', { config: next, preset: service.getPreset(next.activePreset) })
+	const namespace = settingsNamespace('my-theme')
+	let settings: {
+		watch: (callback: (config: Config) => void) => () => void
+		update: (patch: Partial<Config>) => Promise<void>
+	} | undefined
+	ctx.inject(['settings'], (settingsCtx) => {
+		const settingsProvider = settingsCtx as typeof settingsCtx & {
+			settings: {
+				register: (name: string, schema: unknown, options: { base: Config }) => {
+					watch: (callback: (config: Config) => void) => () => void
+					update: (patch: Partial<Config>) => Promise<void>
+				}
+			}
+		}
+		settings = settingsProvider.settings.register(namespace, Config, { base: config })
+		settings.watch((next: Config) => {
+			service.update(next)
+			runtime.emit('theme:update', { config: next, preset: service.getPreset(next.activePreset) })
+		})
 	})
 	const api: ThemeAPI = {
 		getTheme: () => service.getCurrentTheme(),
 		getPresets: () => service.getAllPresets(),
 		setPreset: async (id) => {
 			const preset = service.getPreset(id)
-			if (!preset) return false
+			if (!preset || !settings) return false
 			await settings.update({ activePreset: id, customColors: preset.colors, glassEffect: preset.glassEffect, wallpaper: preset.wallpaper })
 			return true
 		},

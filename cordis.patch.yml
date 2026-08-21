@@ -2,5 +2,3 @@
   - id: my-full-theme
     name: 'my-full-theme-plugin'  # 使用包名，不是相对路径
     config: {}
-  - id: my-full-theme-client
-    name: 'my-full-theme-plugin/client'  # client 端也使用包名
