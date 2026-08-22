@@ -12,7 +12,7 @@ DSH 插件包含两个运行端：
 Host 通过 `cordis.patch.yml` 插入插件树；Client 由 `package.json` 的 `dsh.client` 元数据和 `exports["./client"]` 自动注入。
 
 ## 2. 目录结构
-
+ 
 ```text
 my-full-theme-plugin/
 ├── package.json
