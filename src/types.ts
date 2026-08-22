@@ -9,7 +9,8 @@ export interface ThemeColors {
 }
 
 export interface GlassEffect { enabled: boolean; blur: number; opacity: number }
-export interface WallpaperConfig { url: string; fit: WallpaperFit; opacity: number }
+export interface WallpaperConfig { url: string; fit: WallpaperFit; opacity: number; name?: string }
+export interface WallpaperHistoryItem { id: string; name?: string; ts: number; url: string }
 
 export interface ThemeConfig {
   activePreset: string
