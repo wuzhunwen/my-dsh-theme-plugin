@@ -393,7 +393,7 @@ console.log({
 - [ ] 修改主题后**刷新页面仍保留**（localStorage）
 - [ ] 上传壁纸后**刷新页面仍显示壁纸**，`body[data-my-wallpaper]` 存在
 - [ ] 壁纸点「保存」后进入「历史壁纸」，刷新页面后仍在，可点击切换、单张删除、一键清空
-- [ ] 设置壁纸时侧边栏浮在壁纸上层，移除壁纸/打开设置页时恢复
+- [ ] 设置壁纸后**聊天记录清晰可读**（壁纸垫底，内容绘制在其上层），移除壁纸/打开设置页时恢复不透明背景
 - [ ] `http://127.0.0.1:3080` 返回 HTTP 200
 
 ## 11. 当前边界
@@ -445,15 +445,16 @@ console.log({
 
 **根因**：`#theme-wallpaper` 是 `position:fixed; inset:0; z-index:1`（ThemeManager `applyWallpaper()`），会盖住所有常规流内容；侧边栏默认没有定位、`z-index:auto`（等同 0），因此被压在壁纸之下。
 
-**解决**：在 `client.ts` 注入的样式中增加一条规则，设置壁纸时（`body[data-my-wallpaper]`）把侧边栏提到壁纸层之上：
+**解决（已被[问题 5](#问题-5壁纸遮挡聊天记录)的「壁纸垫底」方案取代）**：当时在 `client.ts` 注入的样式中增加规则，把侧边栏提到壁纸层之上：
 
 ```css
 body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="hHd-Xa_root"] { position: absolute; z-index: 2; }
 ```
 
 - 侧边栏选择器为 `hHd-Xa_root hHd-Xa_quietBars`，用属性选择器 `[class*="hHd-Xa_root"]` 对哈希后缀更稳健。
-- 该属性由 `applyWallpaper()` 自动切换：无壁纸时 `data-my-wallpaper` 移除，样式随之恢复；`destroy()` 会清理属性。无需额外 JS 状态。
 - `position:absolute` 不写 top/left，侧边栏保持在原位置。
+
+> 注：该「逐组件抬升」方案只救了侧边栏，聊天记录仍被压在壁纸层下（见问题 5）；问题 5 改为壁纸垫底后，本条规则已删除。
 
 ### 问题 4：新壁纸不进历史 + 缺少「保存」确认
 
@@ -470,3 +471,25 @@ body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="hHd-Xa_root"] { po
 - 壁纸去重：`findIdByUrl()` 扫描现有数据 key，同一张图（上传或从历史切换）复用同一 id，不重复存储。
 - 上传流程改为**先暂存预览、点「保存」才应用并持久化入历史**；点「取消」丢弃；切换页签时丢弃未保存的暂存；历史项点击立即应用；删除/清空历史时保留当前壁纸的 id 和数据 key，避免删掉正在使用的图。
 - 一次性迁移旧数据（`migrateLegacy()`）：旧 `my-full-theme-plugin:wallpaper` key、上一版 `wallpaper-map`、旧格式历史（含完整 url 的数组）、旧 `@local`/`@local:<id>` 标记的配置自动转换为新结构并清理（旧格式历史优先转换、避免覆盖丢失）。
+
+### 问题 5：壁纸遮挡聊天记录（两次修复）
+
+**现象（第一版）**：设置壁纸后，聊天记录（消息区文字）被壁纸盖住，透明度越低越看不清。
+
+**根因**：壁纸层 `#theme-wallpaper` 是 `position:fixed; inset:0; z-index:1`，绘制在所有常规流内容**之上**；问题 3 只把侧边栏单独抬到 `z-index:2`，中央聊天列（AppFrame 的 `centerCol`，无定位、`z-index:auto`）仍被压在壁纸层下，消息文字因此被图片遮住。这种「覆盖 + 逐组件抬升」模型注定要给每个顶层区域打补丁，漏一个就遮一个。
+
+**第一版解决：改为「壁纸垫底」**——壁纸层 `z-index:-1` + `body[data-my-wallpaper]{background:transparent}`，内容天然在壁纸之上，删除侧边栏抬升规则。
+
+**现象（第二版回归）**：修复后壁纸反而几乎看不见了。
+
+**根因（第二版，两部分）**：
+1. **不透明容器挡住垫底壁纸**：中央聊天列里 `wSkVaW_root`（会话列表容器，覆盖整个中心列）自带不透明背景 `rgb(21,21,23)`（`var(--dsw-alias-bg-base)`），壁纸垫底后整个被它盖住；同列的 `ydkMvW_root`（详情列容器）在详情栏打开时同理。
+2. **两层半透明叠乘**：`_frame`(75%) 与 `_root`(80%) 两层半透明背景叠乘后，壁纸实际透出约 5%，即便没被挡住也几乎不可见。
+
+**最终方案（单层透底，当前实现）**：
+- `ThemeManager.applyWallpaper()`：壁纸层 `z-index:-1`（垫底）。
+- `client.ts` 壁纸激活时：body 背景透明；**`_frame` 与 `_sidebarCol` 直接透底**（背景让给其下的列容器，避免叠乘）；**`_root`（会话/详情/侧边栏列容器）45% 背景色**，壁纸由此透出约 55%；`_card` 保持 80% 保证文字可读。
+- 设置页打开时豁免（`:not(.my-theme-settings-open)`），恢复不透明。
+- 不透明小元素（按钮、徽标）保持不变，不受影响。
+
+验证要点：设置壁纸后消息文字清晰可读、壁纸从聊天区明显透出；移除壁纸后恢复实心背景。

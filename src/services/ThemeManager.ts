@@ -371,8 +371,10 @@ export class ThemeManager {
       wallpaper.id = 'theme-wallpaper'
       document.body.prepend(wallpaper)
     }
+    // 壁纸层垫底：z-index:-1 使所有内容（含聊天记录）天然绘制在壁纸之上，
+    // 不再需要给侧边栏等组件逐个抬升层级；body 背景由 client.ts 在壁纸激活时置为透明放行。
     wallpaper.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:1', 'pointer-events:none',
+      'position:fixed', 'inset:0', 'z-index:-1', 'pointer-events:none',
       'background-position:center', 'background-repeat:no-repeat',
       'transition:opacity .2s ease', `background-image:url(${JSON.stringify(config.wallpaper.url)})`,
       `background-size:${config.wallpaper.fit}`, `opacity:${config.wallpaper.opacity / 100}`
