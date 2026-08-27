@@ -27,14 +27,24 @@ export function apply(ctx: Context): void {
 			   1) body 背景放行，否则负层级壁纸会被 body 自身背景盖住；
 			   2) 顶层框架 _frame 与侧边栏列 _sidebarCol 透底，背景交给其下的列容器，
 			      避免两层半透明叠乘把壁纸压没；
-			   3) 列容器 _root（会话列表/详情列/侧边栏）半透明，壁纸由此透出（约 55%）；
-			   4) 卡片 _card 保持较强不透明度，保证聊天文字可读。
+			   3) 列容器 _root（会话列表/详情列/侧边栏）45% 背景色，壁纸透出约 55%，
+			      同时给聊天记录一个底色衬托、保证可读；
+			   4) 卡片 _card、消息气泡 _bubble 与所有小控件（button/input/textarea/select/徽标）
+			      全部透底，去掉"一个一个的框"；只改动背景，文字保持不透明正常显示，
+			      按钮保留悬停反馈（轻微主色染底）。
 			   聊天记录等所有内容天然绘制在壁纸之上，不再被遮挡。 */
 			body[data-my-wallpaper] { background: transparent !important; }
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"],
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_sidebarCol"] { background: transparent !important; }
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_root"] { background: color-mix(in srgb, var(--theme-background) 45%, transparent) !important; }
-			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_card"] { background: color-mix(in srgb, var(--theme-surface) 80%, transparent) !important; }
+			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_card"],
+			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_bubble"] { background: transparent !important; }
+			body[data-my-wallpaper]:not(.my-theme-settings-open) button,
+			body[data-my-wallpaper]:not(.my-theme-settings-open) input,
+			body[data-my-wallpaper]:not(.my-theme-settings-open) textarea,
+			body[data-my-wallpaper]:not(.my-theme-settings-open) select,
+			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="badge" i] { background: transparent !important; }
+			body[data-my-wallpaper]:not(.my-theme-settings-open) button:hover { background: color-mix(in srgb, var(--theme-primary) 18%, transparent) !important; }
 			body[data-my-theme] button { color: var(--theme-text); }
 			body[data-my-theme] button:hover { background: color-mix(in srgb, var(--theme-primary) 18%, transparent); }
 			.glass-effect { backdrop-filter: blur(var(--glass-blur)); background: rgba(var(--theme-primary-rgb), var(--glass-opacity)); }
