@@ -113,6 +113,8 @@ export function SettingsPanel({ manager, onConfigChange }: SettingsPanelProps) {
         )}
         <label>适配方式<select value={config.wallpaper.fit} onChange={(event) => update('wallpaper.fit', event.target.value)}><option value="cover">Cover</option><option value="contain">Contain</option><option value="fill">Fill</option></select></label>
         <label>透明度 {config.wallpaper.opacity}%<input type="range" min="0" max="100" value={config.wallpaper.opacity} onChange={(event) => update('wallpaper.opacity', Number(event.target.value))} /></label>
+        <label>列背景不透明度 {config.columnOpacity}%<input type="range" min="0" max="100" value={config.columnOpacity} onChange={(event) => update('columnOpacity', Number(event.target.value))} /><small>0% 时工作区/聊天记录与 root 一样完全透明透出壁纸，100% 时恢复纯主题背景色</small></label>
+        <label>发送框不透明度 {config.composerOpacity}%<input type="range" min="0" max="100" value={config.composerOpacity} onChange={(event) => update('composerOpacity', Number(event.target.value))} /><small>单独控制消息发送框背景：0% 完全透明，100% 纯表面色</small></label>
         {manager.getWallpaperHistory().length > 0 && (
           <div className="wallpaper-history">
             <div className="wallpaper-history-head"><strong>历史壁纸</strong><button onClick={() => manager.clearWallpaperHistory()}>清空</button></div>

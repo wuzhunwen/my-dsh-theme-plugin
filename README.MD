@@ -167,6 +167,8 @@ z.union(['cover', 'contain', 'fill'])
 | `customColors` | 主色、辅助色、背景、表面和文字颜色 |
 | `glassEffect` | 毛玻璃开关、模糊和透明度 |
 | `wallpaper` | URL、适配方式和透明度 |
+| `columnOpacity` | 壁纸模式下工作区/聊天记录列的背景不透明度（0-100，0=与 root 一致完全透明，100=纯主题背景色） |
+| `composerOpacity` | 壁纸模式下消息发送框的背景不透明度（0-100，0=完全透明，100=纯表面色，与列底色互不影响） |
 | `customCSS` | 自定义 CSS |
 
 ### 6.3 settings 注册
@@ -486,10 +488,11 @@ body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="hHd-Xa_root"] { po
 1. **不透明容器挡住垫底壁纸**：中央聊天列里 `wSkVaW_root`（会话列表容器，覆盖整个中心列）自带不透明背景 `rgb(21,21,23)`（`var(--dsw-alias-bg-base)`），壁纸垫底后整个被它盖住；同列的 `ydkMvW_root`（详情列容器）在详情栏打开时同理。
 2. **两层半透明叠乘**：`_frame`(75%) 与 `_root`(80%) 两层半透明背景叠乘后，壁纸实际透出约 5%，即便没被挡住也几乎不可见。
 
-**最终方案（单层透底，当前实现）**：
+**最终方案（令牌映射 + 单层透底 + 兜底，当前实现）**：
 - `ThemeManager.applyWallpaper()`：壁纸层 `z-index:-1`（垫底）。
-- `client.ts` 壁纸激活时：body 背景透明；**`_frame`、`_sidebarCol` 直接透底**（背景让给其下的列容器，避免叠乘）；**`_root`（会话/详情/侧边栏列容器）45% 背景色**，壁纸透出约 55% 且给聊天记录一个底色衬托；**`_card`、`_bubble`（输入卡片、消息气泡等所有"框"）与全部小控件（`button`/`input`/`textarea`/`select`/徽标）透底**，去掉一个一个的框；只改背景，**文字保持不透明正常显示**，按钮保留悬停反馈（轻微主色染底）。
-- 设置页打开时豁免（`:not(.my-theme-settings-open)`），恢复不透明。
-- 内容性背景（代码块等）与悬浮层（菜单/弹层）保持原样，不受影响。
+- `client.ts` 主题激活时**映射 DSH 设计令牌**：把 `--dsw-alias-bg-base`、`--dsw-specific-sidebar-fill` 指到 `--theme-background`，把 `--dsw-alias-bg-layer-1/2/3`、`--dsw-specific-input-major`、`--dsw-specific-bubble`、`--dsw-specific-menu`、`--dsw-specific-selector`、`--dsw-alias-bg-module-platform` 指到 `--theme-surface`。工作区列/聊天记录列/侧边栏等所有消费这些令牌的组件（`wSkVaW_root`、`ydkMvW_root`、`hHd-Xa_root` 等）自动与 root 同色，不再依赖哈希类名逐类覆盖，也免受 DSH 每次构建改类名的影响。
+- `client.ts` 壁纸激活时把上述背景令牌置为按 `--column-opacity`（0-100%，设置面板「列背景不透明度」可调）混合的主题背景色：0% 时工作区/聊天记录/侧边栏与 root 一样**完全透底**、壁纸全幅可见；100% 时恢复纯主题背景色；中间值半透明衬托、兼顾可读性。`_frame`、`_sidebarCol` 同时直接透底避免叠乘；**兜底规则 `[class*="_frame"] *` 让框架内所有元素背景一律透底**——代码块、状态胶囊、行选中态、选择器等大量自带背景的类全部跟随 root 透明度（conversation 包一个包就用了 21 种背景变量，逐类枚举必然漏）；**列容器规则 `[class*="_root"]` 后声明**，在兜底之上按同一 `--column-opacity` 上色；**消息发送框规则 `[class*="_card"]` 同样后声明**，按独立的 `--composer-opacity`（设置面板「发送框不透明度」）以表面色上色，与列底色互不影响。
+- **豁免**：图片与悬浮层（`_panel`/`_menu`/`_popover`/`_tooltip`/`_dialog`/`_modal`）恢复 `--theme-surface`，保证弹层可读；**反馈**：按钮/行悬停与选中态（`[class*="Row" i]:hover`、`[class*="_selected"]`）保留主色淡染。
+- 只改背景，**文字保持不透明正常显示**；设置页打开时豁免（`:not(.my-theme-settings-open)`），恢复不透明。
 
-验证要点：设置壁纸后消息文字清晰可读、壁纸从聊天区明显透出；移除壁纸后恢复实心背景。
+验证要点：设置壁纸后消息文字清晰可读、壁纸从聊天区明显透出、工作区/聊天记录与 root 同色同透明度；移除壁纸后各列与 root 同为 `--theme-background`。

@@ -108,6 +108,9 @@ export class ThemeManager {
       if (!raw) return null
       const config = JSON.parse(raw) as ThemeConfig
       config.wallpaper = { ...config.wallpaper, url: '' }
+      // 兼容旧配置：缺省字段补默认值（如新增的 columnOpacity / composerOpacity）
+      if (typeof config.columnOpacity !== 'number') config.columnOpacity = defaultThemeConfig.columnOpacity
+      if (typeof config.composerOpacity !== 'number') config.composerOpacity = defaultThemeConfig.composerOpacity
       const id = this.getCurrentWallpaperId()
       if (id) {
         const data = this.readWallpaperData(id)

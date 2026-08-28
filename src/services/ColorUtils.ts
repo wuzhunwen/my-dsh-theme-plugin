@@ -22,6 +22,8 @@ export function themeVariables(config: ThemeConfig): Record<string, string> {
     '--theme-primary-rgb': `${rgb.r}, ${rgb.g}, ${rgb.b}`,
     '--glass-blur': `${config.glassEffect.blur}px`,
     '--glass-opacity': String(config.glassEffect.opacity / 100),
+    '--column-opacity': `${config.columnOpacity ?? 0}%`,
+    '--composer-opacity': `${config.composerOpacity ?? 0}%`,
     '--wallpaper-fit': config.wallpaper.fit,
     '--wallpaper-opacity': String(config.wallpaper.opacity / 100)
   }

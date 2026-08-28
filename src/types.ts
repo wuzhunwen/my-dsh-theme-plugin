@@ -17,6 +17,10 @@ export interface ThemeConfig {
   customColors: ThemeColors
   glassEffect: GlassEffect
   wallpaper: WallpaperConfig
+  /** 壁纸模式下工作区/聊天记录列的背景不透明度（0-100，0=与 root 一样完全透明，100=纯主题背景色） */
+  columnOpacity: number
+  /** 壁纸模式下消息发送框的背景不透明度（0-100，0=完全透明，100=纯表面色） */
+  composerOpacity: number
   customCSS: string
 }
 
@@ -45,5 +49,7 @@ export const defaultThemeConfig: ThemeConfig = {
   },
   glassEffect: { enabled: true, blur: 20, opacity: 30 },
   wallpaper: { url: '', fit: 'cover', opacity: 100 },
+  columnOpacity: 0,
+  composerOpacity: 0,
   customCSS: ''
 }

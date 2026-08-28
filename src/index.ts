@@ -24,6 +24,8 @@ export const Config = z.object({
 	wallpaper: z.object({
 		url: z.string().default(''), fit: z.union(['cover', 'contain', 'fill']).default('cover'), opacity: z.number().min(0).max(100).default(100)
 	}),
+	columnOpacity: z.number().min(0).max(100).default(0),
+	composerOpacity: z.number().min(0).max(100).default(0),
 	customCSS: z.string().default('')
 })
 
