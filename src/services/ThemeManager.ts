@@ -71,14 +71,18 @@ export class ThemeManager {
         if (this.writeWallpaperData(id, { url, name: config.wallpaper.name ?? '' })) {
           this.currentWallpaperId = id
           this.currentWallpaperUrl = url
-          localStorage.setItem(WALLPAPER_CURRENT_KEY, id)
+          try { localStorage.setItem(WALLPAPER_CURRENT_KEY, id) } catch (error) {
+            console.warn('[my-theme] 当前壁纸 id 保存失败：', error)
+          }
         } else {
           id = undefined
         }
       } else {
         this.currentWallpaperId = id
         this.currentWallpaperUrl = url
-        localStorage.setItem(WALLPAPER_CURRENT_KEY, id)
+        try { localStorage.setItem(WALLPAPER_CURRENT_KEY, id) } catch (error) {
+          console.warn('[my-theme] 当前壁纸 id 保存失败：', error)
+        }
       }
       if (id) {
         const oldHistory = this.readHistoryList()
@@ -192,15 +196,67 @@ export class ThemeManager {
       }
     }
     if (save()) return true
-    const oldest = this.readHistoryList()
+    // 配额不足：备份将被淘汰的历史项，删最旧腾空间重试；全部失败则回滚，绝不静默丢历史。
+    const historyBefore = this.readHistoryList()
+    const removed: { item: StoredHistoryItem; raw: string | null }[] = []
+    const oldest = historyBefore
       .filter((item) => item.id !== id && item.id !== this.currentWallpaperId)
       .sort((a, b) => a.ts - b.ts)
     for (const item of oldest) {
+      const raw = localStorage.getItem(WALLPAPER_DATA_PREFIX + item.id)
       localStorage.removeItem(WALLPAPER_DATA_PREFIX + item.id)
       this.writeWallpaperHistory(this.readHistoryList().filter((h) => h.id !== item.id))
+      removed.push({ item, raw })
       if (save()) return true
     }
+    // 回滚：恢复被删的历史项与历史列表
+    for (const { item, raw } of removed) {
+      if (raw) {
+        try { localStorage.setItem(WALLPAPER_DATA_PREFIX + item.id, raw) } catch { /* 忽略 */ }
+      }
+    }
+    this.writeWallpaperHistory(historyBefore)
+    console.warn('[my-theme] 壁纸数据保存失败且无足够空间，已回滚历史，请压缩壁纸后重试：', data.name)
     return false
+  }
+
+  /**
+   * 压缩超大壁纸 data URL，使其可存入 localStorage。
+   * 规则：超过 maxChars 时用 canvas 缩放到最长边 MAX_EDGE 并转 JPEG，
+   * 从 quality 0.85 起逐步降质直到体积达标；任何一步失败则返回原图。
+   */
+  static async compressWallpaperDataUrl(dataUrl: string, maxChars = 1_500_000): Promise<string> {
+    if (typeof document === 'undefined' || !dataUrl || dataUrl.length <= maxChars) return dataUrl
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image()
+        image.onload = () => resolve(image)
+        image.onerror = () => reject(new Error('image load failed'))
+        image.src = dataUrl
+      })
+      const MAX_EDGE = 2560
+      let w = img.naturalWidth
+      let h = img.naturalHeight
+      const scale = Math.min(1, MAX_EDGE / Math.max(w, h))
+      w = Math.max(1, Math.round(w * scale))
+      h = Math.max(1, Math.round(h * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return dataUrl
+      ctx.drawImage(img, 0, 0, w, h)
+      let quality = 0.85
+      let out = canvas.toDataURL('image/jpeg', quality)
+      while (out.length > maxChars && quality > 0.3) {
+        quality -= 0.1
+        out = canvas.toDataURL('image/jpeg', quality)
+      }
+      return out
+    } catch (error) {
+      console.warn('[my-theme] 壁纸压缩失败，将使用原图：', error)
+      return dataUrl
+    }
   }
 
   private getCurrentWallpaperId(): string | undefined {

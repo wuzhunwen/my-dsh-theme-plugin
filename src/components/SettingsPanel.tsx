@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore, useState } from 'react'
 import type { ThemeConfig, ThemePreset } from '../types'
-import type { ThemeManager } from '../services/ThemeManager'
+import { ThemeManager } from '../services/ThemeManager'
 import { ThemePreview } from './ThemePreview'
 
 interface SettingsPanelProps {
@@ -58,7 +58,7 @@ export function SettingsPanel({ manager, onConfigChange }: SettingsPanelProps) {
 
   const stageWallpaper = (file: File, event: React.ChangeEvent<HTMLInputElement>) => {
     if (file.size > 5 * 1024 * 1024) {
-      window.alert('壁纸文件超过 5MB，无法保存，请更换图片')
+      window.alert('壁纸文件超过 5MB，请更换图片（超大图会在保存时自动压缩，5MB 内即可）')
       event.target.value = ''
       return
     }
@@ -68,13 +68,16 @@ export function SettingsPanel({ manager, onConfigChange }: SettingsPanelProps) {
     reader.readAsDataURL(file)
     event.target.value = ''
   }
-  const saveStagedWallpaper = () => {
+  const saveStagedWallpaper = async () => {
     if (!stagedWallpaper) return
-    update('wallpaper.url', stagedWallpaper.url, 'wallpaper.name', stagedWallpaper.name)
+    // 超大图先压缩（最长边 2560、JPEG，逐步降质），保证能写入 localStorage 持久化
+    const url = await ThemeManager.compressWallpaperDataUrl(stagedWallpaper.url)
+    update('wallpaper.url', url, 'wallpaper.name', stagedWallpaper.name)
     setStagedWallpaper(null)
   }
-  const applyHistoryWallpaper = (url: string, name?: string) => {
-    update('wallpaper.url', url, 'wallpaper.name', name)
+  const applyHistoryWallpaper = async (url: string, name?: string) => {
+    const compressed = await ThemeManager.compressWallpaperDataUrl(url)
+    update('wallpaper.url', compressed, 'wallpaper.name', name)
     setStagedWallpaper(null)
   }
   return (

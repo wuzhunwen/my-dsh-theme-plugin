@@ -65,11 +65,16 @@ export function apply(ctx: Context): void {
 			/* 兜底（先声明）：框架内所有元素背景一律透底 */
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] * { background: transparent !important; }
 			/* 列容器底色（后声明，同等优先级下覆盖兜底；不透明度由 --column-opacity 控制，
-			   0% 与 root 一样全透明，100% 纯主题背景色） */
-			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_root"] { background: color-mix(in srgb, var(--theme-background) var(--column-opacity, 0%), transparent) !important; }
+			   0% 与 root 一样全透明，100% 纯主题背景色；限定在 frame 内，
+			   避免误染 portal 到 body 下的弹窗根容器） */
+			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_root"] { background: color-mix(in srgb, var(--theme-background) var(--column-opacity, 0%), transparent) !important; }
 			/* 消息发送框底色（后声明，同等优先级下覆盖兜底；不透明度由 --composer-opacity 单独控制，
 			   0% 完全透明，100% 纯表面色，与列底色互不影响） */
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_card"] { background: color-mix(in srgb, var(--theme-surface) var(--composer-opacity, 0%), transparent) !important; }
+			/* 弹窗会话（portal 到 body、frame 之外的 dialog/modal 根）：跟随发送框透明度，
+			   与 frame 内的悬浮层豁免（恢复 surface）互不影响 */
+			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_dialog"],
+			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_modal"] { background: color-mix(in srgb, var(--theme-surface) var(--composer-opacity, 0%), transparent) !important; }
 			/* 豁免：悬浮层（菜单/弹层/提示/对话框）恢复表面色，保证可读 */
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_panel" i],
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_menu" i],

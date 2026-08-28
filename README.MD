@@ -401,7 +401,8 @@ console.log({
 ## 11. 当前边界
 
 - 主题页面和 Client 注入已通过 DSH Web profile 验证。
-- 配置通过客户端 `localStorage` 持久化，**刷新页面后保留**：主题配置存 `my-full-theme-plugin:config`（壁纸仅存 fit/opacity）、当前壁纸 id 存 `my-full-theme-plugin:wallpaper-current`、历史列表存 `my-full-theme-plugin:wallpaper-history`、单张壁纸数据存 `my-full-theme-plugin:wallpaper:<id>`；新增壁纸超出配额时自动按时间丢最旧非当前项并重试，仍失败则 `console.warn`，不影响颜色/预设等其余配置。
+- 配置通过客户端 `localStorage` 持久化，**刷新页面后保留**：主题配置存 `my-full-theme-plugin:config`（壁纸仅存 fit/opacity）、当前壁纸 id 存 `my-full-theme-plugin:wallpaper-current`、历史列表存 `my-full-theme-plugin:wallpaper-history`、单张壁纸数据存 `my-full-theme-plugin:wallpaper:<id>`；新增壁纸超出配额时自动按时间丢最旧非当前项并重试，全部失败则**回滚已删历史**并 `console.warn`，不影响颜色/预设等其余配置。
+- **超大壁纸自动压缩**：保存/应用壁纸时，超过约 1.5MB（base64 字符）的 data URL 会用 canvas 压缩到最长边 2560、JPEG 逐步降质，保证能写入 localStorage 持久化；否则 4-5MB 的 PNG 转 base64 后（约 6.3MB 字符）会超过 Chromium/Electron 的 localStorage 配额（约 5MB），导致写入失败——这也是旧版「选大图丢历史、刷新壁纸消失」的根因。
 - 该持久化按浏览器隔离：同一主机上的另一个浏览器/配置文件不会共享主题。
 - 设置页面由 `ThemeManager` 提供主题状态，不依赖 settings provider 快照，始终可显示。
 - 历史壁纸上限 8 张（`WALLPAPER_HISTORY_MAX`），超出自动丢弃最旧。
@@ -496,3 +497,24 @@ body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="hHd-Xa_root"] { po
 - 只改背景，**文字保持不透明正常显示**；设置页打开时豁免（`:not(.my-theme-settings-open)`），恢复不透明。
 
 验证要点：设置壁纸后消息文字清晰可读、壁纸从聊天区明显透出、工作区/聊天记录与 root 同色同透明度；移除壁纸后各列与 root 同为 `--theme-background`。
+
+### 问题 6：弹窗会话误跟随列透明度
+
+**现象**：会话管理弹窗（portal 渲染到 body、frame 之外）背景跟随「列背景不透明度」而不是「发送框不透明度」。
+
+**根因**：列容器规则 `[class*="_root"]` 未限定在 frame 内，portal 弹窗的根容器类名同样含 `_root`，被误染。
+
+**解决**：列容器规则收紧为 `[class*="_frame"] [class*="_root"]`；另加 frame 之外的 `[class*="_dialog"]`/`[class*="_modal"]` 规则，按 `--composer-opacity`（发送框不透明度）以表面色上色，弹窗会话与发送框同透明度。
+
+### 问题 7：选大图壁纸会删历史且刷新丢失
+
+**现象**：选择 `D:\个人\wallpaper\20260815124900.png`（约 4.75MB）作壁纸后，历史壁纸被删掉，刷新后壁纸消失。
+
+**根因（配额超限 + 兜底删历史）**：4.75MB PNG 转 base64 后约 6.34M 字符，超过 Chromium/Electron localStorage 配额（约 5MB）。`writeWallpaperData` 保存失败后走「删最旧历史项腾空间」兜底，但新壁纸单张就超配额，删光历史也放不下 → 返回 false → 新壁纸既不进历史也不写 `wallpaper-current`；而被删的历史项没有回滚 → 刷新后当前壁纸丢失、历史也被清掉。
+
+**解决**：
+1. **超大壁纸自动压缩**：保存/应用壁纸时，超过约 1.5MB（base64 字符）的 data URL 用 canvas 压缩到最长边 2560、JPEG 从 0.85 起逐步降质（`ThemeManager.compressWallpaperDataUrl()`），4-5MB 原图压到可持久化尺寸。
+2. **失败回滚**：`writeWallpaperData` 淘汰历史项前先备份，若最终仍写不下则恢复被删的历史项与历史列表，绝不静默丢历史。
+3. `wallpaper-current` 写入补 try-catch，配额满不再抛异常。
+
+验证要点：选择 4-5MB 壁纸保存后历史仍在、刷新后壁纸保留；选图时超大图自动压缩后保存。
