@@ -1,5 +1,4 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 import { ThemeService } from './services/ThemeService'
 import type { ThemeAPI, ThemeConfig, ThemePreset } from './types'
@@ -43,7 +42,7 @@ export function apply(ctx: Context, config: Config): void {
 	}
 	presets.forEach((preset) => service.registerPreset(preset))
 	ctx.provide('themeService', service)
-	const namespace = settingsNamespace('my-theme')
+	const namespace = 'my-theme'
 	let settings: {
 		watch: (callback: (config: Config) => void) => () => void
 		update: (patch: Partial<Config>) => Promise<void>
