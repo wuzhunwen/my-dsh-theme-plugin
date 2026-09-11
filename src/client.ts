@@ -120,7 +120,18 @@ export function apply(ctx: Context): void {
 		document.head.appendChild(style)
 		const saved = manager.loadPersisted()
 		manager.applyTheme(saved ?? manager.getTheme())
-		return () => { style.remove(); manager.destroy() }
+		// DSH（ui-layout 的 ThemePresenter，dsh ≥ 0.1.2-rc.1）在插件激活后还会按它自己的
+		// 外观偏好（ui-theme）改写 body 的 data-ds-dark-theme 与根 color-scheme，可能把本
+		// 插件按配色推导出的明暗模式抹掉（浅色文本/边框令牌压到深色背景上 = 刷新后“样式还
+		// 原”）。观察这两个字段的每次外部写入并夺回；reassert() 内部先比较再写入，不会自激。
+		const observer = new MutationObserver(() => { try { manager.reassert() } catch { /* 忽略 */ } })
+		observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
+		return () => {
+			observer.disconnect()
+			style.remove()
+			manager.destroy()
+		}
 	})
 	runtime.slots.inject('settings.section', () => runtime.slots.register({
 		name: 'settings.section',

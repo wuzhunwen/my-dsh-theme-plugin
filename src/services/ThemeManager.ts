@@ -60,6 +60,33 @@ export class ThemeManager {
     this.notify()
   }
 
+  /**
+   * Re-assert the parts of the theme that DSH's own theme layer (ThemePresenter,
+   * since dsh 0.1.2-rc.1) also writes after plugin activation: the
+   * `data-ds-dark-theme` body attribute and the root `color-scheme`. DSH
+   * re-applies them from its own persisted appearance preference (ui-theme),
+   * which can erase the mode derived from this plugin's palette — leaving DSH's
+   * light-palette tokens (labels/borders) on a dark background after refresh.
+   * Values are compared before writing so a no-op never fires the observer that
+   * calls this method (no feedback loop).
+   */
+  reassert(): void {
+    const root = document.documentElement
+    const dark = this.isDarkTheme(this.currentTheme)
+    const wantColorScheme = dark ? 'dark' : 'light'
+    const wantsDarkAttribute = dark
+    const currentDarkAttribute = document.body.hasAttribute('data-ds-dark-theme')
+    if (currentDarkAttribute !== wantsDarkAttribute) {
+      document.body.toggleAttribute('data-ds-dark-theme', dark)
+    }
+    if (root.style.colorScheme !== wantColorScheme) {
+      root.style.colorScheme = wantColorScheme
+    }
+    const wantPreset = this.currentTheme.activePreset
+    if ((root.dataset.theme ?? undefined) !== wantPreset) root.dataset.theme = wantPreset
+    if ((document.body.dataset.myTheme ?? undefined) !== wantPreset) document.body.dataset.myTheme = wantPreset
+  }
+
   persist(config: ThemeConfig): void {
     // 壁纸按 id 独立存放（wallpaper:<id>），当前 id 存 wallpaper-current，历史列表只存 [{id,name,ts}]。
     const url = config.wallpaper.url
