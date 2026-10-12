@@ -493,8 +493,8 @@ body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="hHd-Xa_root"] { po
 - `ThemeManager.applyWallpaper()`：壁纸层 `z-index:-1`（垫底）。
 - `client.ts` 主题激活时**映射 DSH 设计令牌**：把 `--dsw-alias-bg-base`、`--dsw-specific-sidebar-fill` 指到 `--theme-background`，把 `--dsw-alias-bg-layer-1/2/3`、`--dsw-specific-input-major`、`--dsw-specific-bubble`、`--dsw-specific-menu`、`--dsw-specific-selector`、`--dsw-alias-bg-module-platform` 指到 `--theme-surface`。工作区列/聊天记录列/侧边栏等所有消费这些令牌的组件（`wSkVaW_root`、`ydkMvW_root`、`hHd-Xa_root` 等）自动与 root 同色，不再依赖哈希类名逐类覆盖，也免受 DSH 每次构建改类名的影响。
 - `client.ts` 壁纸激活时把上述背景令牌置为按 `--column-opacity`（0-100%，设置面板「列背景不透明度」可调）混合的主题背景色：0% 时工作区/聊天记录/侧边栏与 root 一样**完全透底**、壁纸全幅可见；100% 时恢复纯主题背景色；中间值半透明衬托、兼顾可读性。`_frame`、`_sidebarCol` 同时直接透底避免叠乘；**兜底规则 `[class*="_frame"] *` 让框架内所有元素背景一律透底**——代码块、状态胶囊、行选中态、选择器等大量自带背景的类全部跟随 root 透明度（conversation 包一个包就用了 21 种背景变量，逐类枚举必然漏）；**列容器规则 `[class*="_root"]` 后声明**，在兜底之上按同一 `--column-opacity` 上色；**消息发送框规则 `[class*="_card"]` 同样后声明**，按独立的 `--composer-opacity`（设置面板「发送框不透明度」）以表面色上色，与列底色互不影响。
-- **豁免**：图片与悬浮层（`_panel`/`_menu`/`_popover`/`_tooltip`/`_dialog`/`_modal`）恢复 `--theme-surface`，保证弹层可读；**反馈**：按钮/行悬停与选中态（`[class*="Row" i]:hover`、`[class*="_selected"]`）保留主色淡染。
-- 只改背景，**文字保持不透明正常显示**；设置页打开时豁免（`:not(.my-theme-settings-open)`），恢复不透明。
+- **豁免**：frame 内的悬浮层（`_menu`/`_popover`/`_tooltip`/`_dialog`/`_modal`）恢复 `--theme-surface`，保证弹层可读——注意 DSH 的菜单/弹层实际都 portal 到 body（frame 之外），本就不落进 frame 内规则；**反馈**：按钮/行悬停与选中态（`[class*="Row" i]:hover`、`[class*="_selected"]`）保留主色淡染。
+- 只改背景，**文字保持不透明正常显示**；设置对话框打开期间整页豁免（`body.my-theme-settings-open`，见问题 9），恢复不透明。
 
 验证要点：设置壁纸后消息文字清晰可读、壁纸从聊天区明显透出、工作区/聊天记录与 root 同色同透明度；移除壁纸后各列与 root 同为 `--theme-background`。
 
@@ -518,3 +518,30 @@ body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="hHd-Xa_root"] { po
 3. `wallpaper-current` 写入补 try-catch，配额满不再抛异常。
 
 验证要点：选择 4-5MB 壁纸保存后历史仍在、刷新后壁纸保留；选图时超大图自动压缩后保存。
+
+### 问题 8：聊天界面右侧不透明块
+
+**现象**：聊天界面右侧出现一大块与周围不同色的不透明区域（宽约半个窗口，即右侧详情栏）。
+
+**根因（两处，分别对应无壁纸与有壁纸两种状态）**：
+
+1. **无壁纸状态：画布令牌被指到了表面色**。DSH 暗色令牌本身是一套有层次的取值：`--dsw-alias-bg-base`（画布）= `--dsw-static-neutral-bluish-950` = `#151517`，`--dsw-alias-bg-layer-1` = `#2121…`（bluish-875），`--dsw-alias-bg-layer-2` = bluish-850 = `#2c2c2e`，`--dsw-specific-sidebar-fill` = bluish-900 = `#1b1b1c`——画布最暗、层级越高越亮，右侧栏正是靠这点亮度差被认出。早期映射把 `--dsw-alias-bg-base` 指到了 `--theme-surface`（比 `--theme-background` 更亮），而右侧详情栏的宿主 `_tabHost:not(_float)` 恰好以 `background: var(--dsw-alias-bg-base)` 上色，于是它在整片 `--theme-background` 的画布上被刷成一块 `#1A1A2E` 的亮色块。实测：`frame` = `#0F0F1A`，`_tabHost` = `#1A1A2E`。
+2. **有壁纸状态：豁免规则命中了布局列容器**。豁免规则在 frame 内列出 `[class*="_panel" i]` 并把它刷成 `var(--theme-surface)`。DSH 的悬浮层/菜单/弹层全部 portal 到 `body`（frame 之外），从不命中原生的 frame 内规则；而 `_panel` 这一族命中的恰是**布局列容器**——右侧详情栏 `_panel`/`_panelBody`（623×797，绝对定位于 `_rightbarCol`）。该面板因此不参与兜底透底，背景固定为 `rgb(26,26,46)` = `--theme-surface`。
+
+**解决**：
+
+1. `--dsw-alias-bg-base` 与 `--dsw-specific-sidebar-fill` 一并指到 `--theme-background`（画布色），`--dsw-alias-bg-layer-*` 等抬升层保持 `--theme-surface`，恢复令牌原有的深浅层次。
+2. 从豁免列表中移除 `[class*="_panel" i]`。列容器继续跟随兜底规则透底，不透明度交由 `--column-opacity` 控制；`_menu`/`_popover`/`_tooltip`/`_dialog`/`_modal` 保留。
+
+验证要点：无壁纸时 `_frame`、`_sidebarCol`、`_tabHost`（右侧栏）同为 `--theme-background`，右侧无亮色块；开启壁纸后打开右侧栏，面板与其余列同样透出壁纸；菜单/弹层仍为不透明表面色、文字可读。
+
+### 问题 9：设置页切分节后整页透底
+
+**现象**：设置对话框停在「主题设置」分节时正常不透明；切到「通用设置」等其它分节后，设置页和整个聊天界面一起透底，壁纸与文字相互穿透。
+
+**根因**：`body.my-theme-settings-open` 由 `SettingsPanel` 的 `useEffect` 维护，而 DSH 的设置对话框一次只挂载当前分节——切走即卸载 `SettingsPanel`，豁免标记随之移除，`:not(.my-theme-settings-open)` 的透底规则立刻对整个页面生效。
+
+**解决**：豁免标记改由框架层跟随「设置对话框是否打开」，与当前挂载哪个分节无关：`client.ts` 用 `MutationObserver`（`childList`+`subtree`）与 500ms 兜底轮询同步 `document.querySelector('[data-shortcut-modal="settings"]')` 的存在性到 `body.my-theme-settings-open`，插件卸载时断开观察、清除定时器并移除标记。`SettingsPanel` 不再维护该标记。
+
+验证要点：设置对话框打开期间（任意分节、含分节切换）整页保持不透明；关闭后立即恢复壁纸透底。
+

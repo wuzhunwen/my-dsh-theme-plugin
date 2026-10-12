@@ -75,8 +75,11 @@ export function apply(ctx: Context): void {
 			   与 frame 内的悬浮层豁免（恢复 surface）互不影响 */
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_dialog"],
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_modal"] { background: color-mix(in srgb, var(--theme-surface) var(--composer-opacity, 0%), transparent) !important; }
-			/* 豁免：悬浮层（菜单/弹层/提示/对话框）恢复表面色，保证可读 */
-			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_panel" i],
+			/* 豁免：悬浮层（菜单/弹层/提示/对话框）恢复表面色，保证可读。
+			   刻意不含 [class*="_panel"]：DSH 的悬浮层/菜单/弹层都 portal 到 body（frame 之外），
+			   从不命中这条 frame 内规则；而 _panel 这一族恰好是右侧详情栏等**布局列容器**
+			   （_panel/_panelBody），一旦豁免就被刷成不透明表面色，正是"聊天界面右侧不透明块"
+			   的成因。列容器保持兜底透底，不透明度交给 --column-opacity。 */
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_menu" i],
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_popover" i],
 			body[data-my-wallpaper]:not(.my-theme-settings-open) [class*="_frame"] [class*="_tooltip" i],
@@ -127,8 +130,28 @@ export function apply(ctx: Context): void {
 		const observer = new MutationObserver(() => { try { manager.reassert() } catch { /* 忽略 */ } })
 		observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
 		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
+		// 整页豁免跟随「设置对话框是否打开」，而不是「主题设置分节是否挂载」：DSH 的设置
+		// 对话框一次只挂载当前分节，切到其它分节会卸载 SettingsPanel；豁免若只由它的
+		// useEffect 维持，切分节后整页（含对话框自身）会立刻透底，壁纸和聊天内容穿透设置页。
+		// 标记由 data-shortcut-modal="settings" 识别（DSH 的快捷键设置入口锚点，改动极少），
+		// mutation 覆盖挂载/卸载，低频轮询覆盖不改 DOM 的分节切换，dispose 时一并撤销。
+		const settingsExemption = new MutationObserver(() => { syncSettingsExemption() })
+		const syncSettingsExemption = (): void => {
+			try {
+				const open = Boolean(document.querySelector('[data-shortcut-modal="settings"]'))
+				if (open !== document.body.classList.contains('my-theme-settings-open')) {
+					document.body.classList.toggle('my-theme-settings-open', open)
+				}
+			} catch { /* 忽略 */ }
+		}
+		settingsExemption.observe(document.body, { childList: true, subtree: true })
+		const exemptionTimer = window.setInterval(syncSettingsExemption, 500)
+		syncSettingsExemption()
 		return () => {
 			observer.disconnect()
+			settingsExemption.disconnect()
+			window.clearInterval(exemptionTimer)
+			document.body.classList.remove('my-theme-settings-open')
 			style.remove()
 			manager.destroy()
 		}
